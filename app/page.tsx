@@ -9,6 +9,7 @@ const ChatComponent = () => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'system'; content: string }[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const scrollToBottom = () => {
     const messagesContainer = document.getElementById('messagesContainer');
@@ -58,39 +59,51 @@ This system prompt is always in context of AI.
     return recentMessages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
   };
 
-  const generateAndPlayAudio = async (text: string, system: string) => {
-    const url = `https://text.pollinations.ai/${encodeURIComponent(text)}?system=${encodeURIComponent(system)}&model=openai-audio&voice=shimmer`;
-    try {
-      const response = await fetch(url);
+ const generateAndPlayAudio = async (text: string, system: string) => {
+  const url = `https://text.pollinations.ai/${encodeURIComponent(text)}?system=${encodeURIComponent(system)}&model=openai-audio&voice=shimmer`;
+  try {
+    const response = await fetch(url);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
 
-      if (response.headers.get("Content-Type")?.includes("audio/mpeg")) {
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        
-        audio.play();
-        console.log("🎧 Audio generated and playing.");
-      } else {
-        const errorText = await response.text();
-        console.error("Expected audio, received:", response.headers.get("Content-Type"), errorText);
-        toast.error('Error generating audio response', {
-          position: "top-right",
-          autoClose: 3000
-        });
-      }
-    } catch (error) {
-      console.error("Error generating audio:", error);
-      toast.error('Failed to generate audio response', {
+    if (response.headers.get("Content-Type")?.includes("audio/mpeg")) {
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onplay = () => {
+        toast.info("🎤 Speaking started...");
+        setIsSpeaking(true);
+      };
+
+      audio.onended = () => {
+        toast.info("🛑 Speaking ended.");
+        setIsSpeaking(false);
+      };
+
+      audio.play();
+      console.log("🎧 Audio generated and playing.");
+    } else {
+      const errorText = await response.text();
+      console.error("Expected audio, received:", response.headers.get("Content-Type"), errorText);
+      toast.error('Error generating audio response', {
         position: "top-right",
         autoClose: 3000
       });
     }
-  };
+  } catch (error) {
+    console.error("Error generating audio:", error);
+    toast.error('Failed to generate audio response', {
+      position: "top-right",
+      autoClose: 3000
+    });
+    setIsSpeaking(false);
+  }
+};
+
 
   return (
     <div className="flex flex-col h-dvh bg-gray-100 p-4">
@@ -115,7 +128,7 @@ This system prompt is always in context of AI.
 
       <div className="p-4 border-t bg-white shadow-lg rounded-t-lg">
         <div className="flex items-center gap-2">
-          <SpeechRecognizer onInput={(value: string) => setInput(value)} />
+          <SpeechRecognizer isStreaming={isSpeaking} onInput={(value: string) => setInput(value)} />
           <input
             type="text"
             value={input}
