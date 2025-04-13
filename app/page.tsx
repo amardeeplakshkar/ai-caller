@@ -3,6 +3,7 @@
 import SpeechRecognizer from "@/components/SpeechRecognizer";
 import { Send } from "lucide-react";
 import { useState } from "react";
+import { toast } from 'react-toastify';
 
 const ChatComponent = () => {
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -35,7 +36,12 @@ This system prompt is always in context of AI.
 
       generateAndPlayAudio(input, systemPrompt);
       setInput('');
-      scrollToBottom();  // Auto scroll to the bottom when a new message is added
+      scrollToBottom();
+    } else {
+      toast.warning('Please enter some text or use voice input', {
+        position: "top-right",
+        autoClose: 3000
+      });
     }
   };
 
@@ -47,7 +53,6 @@ This system prompt is always in context of AI.
     }
   };
 
-  // Build system prompt using recent conversation history
   const buildSystemPrompt = (messages: { role: 'user' | 'system'; content: string }[]) => {
     const recentMessages = messages.slice(-6);
     return recentMessages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
@@ -73,9 +78,17 @@ This system prompt is always in context of AI.
       } else {
         const errorText = await response.text();
         console.error("Expected audio, received:", response.headers.get("Content-Type"), errorText);
+        toast.error('Error generating audio response', {
+          position: "top-right",
+          autoClose: 3000
+        });
       }
     } catch (error) {
       console.error("Error generating audio:", error);
+      toast.error('Failed to generate audio response', {
+        position: "top-right",
+        autoClose: 3000
+      });
     }
   };
 
@@ -91,31 +104,33 @@ This system prompt is always in context of AI.
         ))}
       </div>
 
-      {/* Floating Button to Scroll to Bottom */}
       {!isAtBottom && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-4 right-4 bg-blue-500 text-white p-2 rounded-full"
+          className="fixed bottom-24 right-4 bg-blue-500 text-white p-2 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
         >
-          Scroll to Bottom
+          ↓
         </button>
       )}
 
-      <div className="p-4 border-t gap-2 flex justify-center items-center">
-        <SpeechRecognizer setInput={setInput} />
-        <input
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
-          className="w-full p-2 border text-black rounded-lg"
-        />
-        <button
-          onClick={handleSend}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          <Send/>
-        </button>
+      <div className="p-4 border-t bg-white shadow-lg rounded-t-lg">
+        <div className="flex items-center gap-2">
+          <SpeechRecognizer onInput={(value: string) => setInput(value)} />
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Type or speak your message..."
+            className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+          />
+          <button
+            onClick={handleSend}
+            className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     </div>
   );
